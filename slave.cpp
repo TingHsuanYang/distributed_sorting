@@ -14,11 +14,20 @@
 #include <vector>
 
 #define SERVER_IP "127.0.0.1"
-#define SERVER_PORT 12000
+#define SERVER_PORT 12001
 
 using namespace std;
 
 int main(int argc, char const* argv[]) {
+
+    if (argc != 2) {
+        printf("usage: ./slave part1\n");
+        exit(1);
+    }
+
+    string part_name = argv[1];
+
+
     // create socket, AF_INET = IPv4, SOCK_STREAM = TCP
     int socket_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (socket_fd < 0) {
@@ -46,9 +55,9 @@ int main(int argc, char const* argv[]) {
     printf("Connected to server.\n");
 
     // receive file and write to disk
-    string out_name = "part";
+    string out_name = part_name;
     ofstream output(out_name, ios::out | ios::binary);
-    char buffer[100];
+    char buffer[4096];
     ssize_t len;
     while (true) {
         len = recv(socket_fd, buffer, sizeof(buffer), 0);
@@ -62,6 +71,11 @@ int main(int argc, char const* argv[]) {
         printf("Received %ld bytes.\n", len);
         output.write(buffer, len);
     }
+
+    
+
+    //close socket
+    close(socket_fd);
     
     output.close();
     return 0;

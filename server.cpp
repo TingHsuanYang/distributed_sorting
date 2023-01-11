@@ -18,7 +18,9 @@
 #include <vector>
 
 #define SERVER_IP "127.0.0.1"
-#define SERVER_PORT 12000
+#define SERVER_PORT 12001
+#define SLAVE_NUM 5
+#define BUFFER_SIZE 1000
 
 using namespace std;
 
@@ -40,6 +42,9 @@ int main(int argc, char const* argv[]) {
         printf("Fail to create a socket.");
     }
 
+    // set reuse address
+    int reuse_addr = 1;
+    setsockopt(socket_fd, SOL_SOCKET, SO_REUSEADDR, (void*)&reuse_addr, sizeof(reuse_addr));
 
     // set server address
     struct sockaddr_in server_addr;
@@ -64,7 +69,7 @@ int main(int argc, char const* argv[]) {
     }
 
     // wait until we have 5 client connections
-    while (client_fds.size() < 1) {
+    while (client_fds.size() < SLAVE_NUM) {
         // accept incoming connection
         struct sockaddr_in client_addr;
         socklen_t client_addr_len = sizeof(client_addr);
@@ -96,9 +101,9 @@ int main(int argc, char const* argv[]) {
 
     // divide the file into 5 parts and send to clients
     int fd_index = 0;
-    char* buffer = new char[4000];
+    char* buffer = new char[BUFFER_SIZE];
     while (!input.eof()) {
-        input.read(buffer, 4000);
+        input.read(buffer, BUFFER_SIZE);
         int read_size = input.gcount();
         int send_size = send(client_fds[fd_index], buffer, read_size, 0);
         if (send_size < 0) {
@@ -107,8 +112,19 @@ int main(int argc, char const* argv[]) {
             exit(1);
         }
         printf("Send %d bytes to client %d\n", send_size, fd_index);
-        fd_index = (fd_index + 1) % 5;
-        bzero(buffer, 4000);
+        fd_index = (fd_index + 1) % SLAVE_NUM;
+        bzero(buffer, BUFFER_SIZE);
+    }
+
+    // send 0 bytes to slaves to indicate the end of file
+    for (int i = 0; i < SLAVE_NUM; i++) {
+        int send_size = send(client_fds[i], buffer, 0, 0);
+        if (send_size < 0) {
+            printf("Fail to send file to client.\n");
+            close(socket_fd);
+            exit(1);
+        }
+        printf("Send %d bytes to client %d\n", send_size, i);
     }
 
     // close input file

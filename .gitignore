@@ -1,5 +1,5 @@
 # vscode
-.vscode/*
+.vscode/**/*
 
 # MacOS
 .DS_Store
@@ -12,6 +12,9 @@
 *.lo
 *.o
 *.obj
+*
+!*/
+!*.*
 
 # Precompiled Headers
 *.gch
