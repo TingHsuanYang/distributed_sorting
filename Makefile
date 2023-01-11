@@ -1,19 +1,9 @@
-CC :=gcc
-CPP :=g++
-LDFLAGS :=
-CFLAGS :=-pthread
-C_SOURCES :=$(wildcard *.c)
-C_EXECUTABLE :=$(C_SOURCES:.c=)
-CPP_SOURCES :=$(wildcard *.cpp)
-CPP_EXECUTABLE :=$(CPP_SOURCES:.cpp=)
- 
-all:$(C_EXECUTABLE) $(CPP_EXECUTABLE)
-
-$(C_EXECUTABLE):%:%.c
-	$(CC) $(CFLAGS) $< -o $@ $(LDFLAGS)
-
-$(CPP_EXECUTABLE):%:%.cpp
-	$(CPP) $(CFLAGS) $< -o $@ $(LDFLAGS)
-
+all:external_sort server client
+external_sort:external_sort.cpp
+	g++ -o external_sort external_sort.cpp
+server:server.cpp
+	g++ -o server server.cpp
+client:client.cpp
+	g++ -o client client.cpp
 clean:
-	rm -rf $(C_EXECUTABLE) $(CPP_EXECUTABLE)
+	rm -f external_sort server client
