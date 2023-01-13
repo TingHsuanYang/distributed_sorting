@@ -21,6 +21,8 @@ Check if the output is correct
 ./gensort-1.5/valsort ./output
 ```
 
+test
+
 ## Algorithm
 
 ### Phase 1: Splitting
