@@ -1,3 +1,4 @@
+#include "external_sort.hpp"
 #include <sys/stat.h>
 
 #include <algorithm>
@@ -14,6 +15,12 @@
 #define error_message "An error has occurred\n"
 
 using namespace std;
+
+ExternalSort::ExternalSort(string inputName, string outputName)
+    : inputName(inputName),
+      outputName(outputName)
+{
+}
 
 vector<string> part_names;
 
@@ -37,9 +44,9 @@ struct Comparator {
     }
 };
 
-int input(string in_name) {
+int ExternalSort::input() {
     ifstream input;
-    input.open(in_name, ios::in | ios::binary);
+    input.open(inputName, ios::in | ios::binary);
 
     if (!input.good()) {
         cout << error_message;
@@ -48,7 +55,7 @@ int input(string in_name) {
 
     // print file size in GB
     struct stat stat_buf;
-    int rc = stat(in_name.c_str(), &stat_buf);
+    int rc = stat(inputName.c_str(), &stat_buf);
     double file_size = rc == 0 ? stat_buf.st_size : -1;
     printf("file size: %.2f GB\n", file_size / 1024.0 / 1024.0 / 1024.0);
 
@@ -86,8 +93,8 @@ int input(string in_name) {
 }
 
 // k-way merge
-void merge(vector<string> part_names, string out_name) {
-    ofstream output(out_name, ios::out | ios::binary);
+void ExternalSort::merge() {
+    ofstream output(outputName, ios::out | ios::binary);
     priority_queue<HeapNode*, vector<HeapNode*>, Comparator> heap;
 
     // open all the part files
@@ -131,21 +138,15 @@ void merge(vector<string> part_names, string out_name) {
     output.close();
 }
 
-int main(int argc, char const* argv[]) {
-    if (argc != 3) {
-        printf(error_message);
-        return 1;
-    }
-    string input_file = argv[1];
-    string output_file = argv[2];
+int ExternalSort::run() {
 
     auto start = chrono::high_resolution_clock::now();
 
     // read the file and split it into parts (sorted)
-    input(input_file);
+    input();
 
     // merge the parts and output the result
-    merge(part_names, output_file);
+    merge();
 
     // remove the part files
     for (int i = 0; i < part_names.size(); i++) {

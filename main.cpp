@@ -2,8 +2,8 @@
  * entry point of the program
  * ./main -m master -p 8080 -n 5 -i ./input -o ./output
  * ./main --mode master --port 8080 --num 5 --input ./input --output ./output
- * ./main -m slave -p 8080
- * ./main --mode slave --port 8080
+ * ./main -m slave -s 127.0.0.1 -p 8080
+ * ./main --mode slave --server 127.0.0.1 --port 8080
  *
  */
 
@@ -77,7 +77,7 @@ int main(int argc, char** argv) {
             help();
             return 1;
         }
-        // Slave slave(port);
+        // Slave slave(ip, port);
         // slave.run();
     } else {
         help();

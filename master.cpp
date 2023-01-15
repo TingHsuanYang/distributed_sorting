@@ -6,6 +6,7 @@
  *
  * usage: ./server input output
  */
+#include "master.hpp"
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
@@ -17,64 +18,64 @@
 #include <string>
 #include <vector>
 
-#define SERVER_IP "127.0.0.1"
-#define SERVER_PORT 12001
-#define SLAVE_NUM 5
 #define BUFFER_SIZE 1000
 
 using namespace std;
 
-// vector for client socket fd
-vector<int> client_fds;
+Master::Master(int port, int slaveNum, string inputName, string outputName)
+    : port(port),
+      slaveNum(slaveNum),
+      inputName(inputName),
+      outputName(outputName)
+{
+}
 
-int main(int argc, char const* argv[]) {
-    if (argc != 3) {
-        printf("usage: ./server input output\n");
-        exit(1);
-    }
-
-    string in_name = argv[1];
-    string out_name = argv[2];
-
+int Master::run()
+{
     // create socket, AF_INET = IPv4, SOCK_STREAM = TCP
     int socket_fd = socket(AF_INET, SOCK_STREAM, 0);
-    if (socket_fd < 0) {
+    if (socket_fd < 0)
+    {
         printf("Fail to create a socket.");
     }
 
     // set reuse address
     int reuse_addr = 1;
-    setsockopt(socket_fd, SOL_SOCKET, SO_REUSEADDR, (void*)&reuse_addr, sizeof(reuse_addr));
+    setsockopt(socket_fd, SOL_SOCKET, SO_REUSEADDR, (void *)&reuse_addr, sizeof(reuse_addr));
 
     // set server address
     struct sockaddr_in server_addr;
-    server_addr.sin_family = AF_INET;           // IPv4
-    server_addr.sin_port = htons(SERVER_PORT);  // port
-    server_addr.sin_addr.s_addr = INADDR_ANY;   // Any IP address
+    server_addr.sin_family = AF_INET;          // IPv4
+    server_addr.sin_port = htons(port); // port
+    server_addr.sin_addr.s_addr = INADDR_ANY;  // Any IP address
 
     // bind socket to address
-    if (bind(socket_fd, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
+    if (bind(socket_fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0)
+    {
         printf("Fail to bind socket to address.");
         close(socket_fd);
         exit(1);
     }
 
-    printf("Server is listening on port %d\n", SERVER_PORT);
+    printf("Server is listening on port %d\n", port);
 
     // listen for incoming connections
-    if (listen(socket_fd, 5) < 0) {
+    if (listen(socket_fd, 5) < 0)
+    {
         printf("Fail to listen.");
         close(socket_fd);
         exit(1);
     }
 
     // wait until we have 5 client connections
-    while (client_fds.size() < SLAVE_NUM) {
+    while (client_fds.size() < slaveNum)
+    {
         // accept incoming connection
         struct sockaddr_in client_addr;
         socklen_t client_addr_len = sizeof(client_addr);
-        int client_fd = accept(socket_fd, (struct sockaddr*)&client_addr, &client_addr_len);
-        if (client_fd < 0) {
+        int client_fd = accept(socket_fd, (struct sockaddr *)&client_addr, &client_addr_len);
+        if (client_fd < 0)
+        {
             printf("Fail to accept incoming connection.");
             close(socket_fd);
             exit(1);
@@ -87,39 +88,44 @@ int main(int argc, char const* argv[]) {
 
     // send file to clients
     ifstream input;
-    input.open(in_name, ios::in | ios::binary);
-    if (!input.good()) {
+    input.open(inputName, ios::in | ios::binary);
+    if (!input.good())
+    {
         printf("Fail to open input file.\n");
         close(socket_fd);
         exit(1);
     }
 
     struct stat stat_buf;
-    int rc = stat(in_name.c_str(), &stat_buf);
+    int rc = stat(inputName.c_str(), &stat_buf);
     double file_size = rc == 0 ? stat_buf.st_size : -1;
     printf("file size: %.2f GB\n", file_size / 1024.0 / 1024.0 / 1024.0);
 
     // divide the file into 5 parts and send to clients
     int fd_index = 0;
-    char* buffer = new char[BUFFER_SIZE];
-    while (!input.eof()) {
+    char *buffer = new char[BUFFER_SIZE];
+    while (!input.eof())
+    {
         input.read(buffer, BUFFER_SIZE);
         int read_size = input.gcount();
         int send_size = send(client_fds[fd_index], buffer, read_size, 0);
-        if (send_size < 0) {
+        if (send_size < 0)
+        {
             printf("Fail to send file to client.\n");
             close(socket_fd);
             exit(1);
         }
         printf("Send %d bytes to client %d\n", send_size, fd_index);
-        fd_index = (fd_index + 1) % SLAVE_NUM;
+        fd_index = (fd_index + 1) % slaveNum;
         bzero(buffer, BUFFER_SIZE);
     }
 
     // send 0 bytes to slaves to indicate the end of file
-    for (int i = 0; i < SLAVE_NUM; i++) {
+    for (int i = 0; i < slaveNum; i++)
+    {
         int send_size = send(client_fds[i], buffer, 0, 0);
-        if (send_size < 0) {
+        if (send_size < 0)
+        {
             printf("Fail to send file to client.\n");
             close(socket_fd);
             exit(1);
