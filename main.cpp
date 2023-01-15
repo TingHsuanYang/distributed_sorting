@@ -20,19 +20,18 @@
 using namespace std;
 
 void help() {
-    cout << "Usage: ./main -m master -p 8080 -n 5 -i ./input -o ./output" << endl;
-    cout << "       ./main --mode master --port 8080 --num 5 --input ./input --output ./output" << endl;
-    cout << "       ./main -m slave -p 8080" << endl;
-    cout << "       ./main --mode slave --port 8080" << endl;
+    cout << "Usage: main [-m|--mode <master|slave>] [-p|--port <port>] [-n|--num <num>] [-i|--input <input>] [-o|--output <output>]" << endl;
+    cout << "Example: ./main -m master -p 8080 -n 5 -i ./input -o ./output" << endl;
+    cout << "Example: ./main -m slave -p 8080" << endl;
 }
 
 int main(int argc, char** argv) {
     static struct option long_options[] = {
         {"mode", required_argument, 0, 'm'},
         {"port", required_argument, 0, 'p'},
-        {"num", optional_argument, 0, 'n'},
-        {"input", optional_argument, 0, 'i'},
-        {"output", optional_argument, 0, 'o'},
+        {"num", required_argument, 0, 'n'},
+        {"input", required_argument, 0, 'i'},
+        {"output", required_argument, 0, 'o'},
         {"help", no_argument, 0, 'h'},
         {0, 0, 0, 0}};
     int option_index = 0;

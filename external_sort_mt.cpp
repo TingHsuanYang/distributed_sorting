@@ -5,6 +5,7 @@
 #include <iostream>
 #include <queue>
 #include <string>
+#include <thread>
 #include <vector>
 
 #define DATA_SIZE 100
@@ -35,6 +36,19 @@ struct Comparator {
     }
 };
 
+void thread_sort(vector<Record>& buffer_vector, int part_num) {
+    sort(buffer_vector.begin(), buffer_vector.end(), [](const Record& r1, const Record& r2) {
+        return memcmp(r1.value, r2.value, DATA_SIZE) <= 0;
+    });
+    string part_name = "part_" + to_string(part_num);
+    part_names.push_back(part_name);
+    ofstream output(part_name, ios::out | ios::binary);
+    for (int i = 0; i < buffer_vector.size(); i++) {
+        output.write(buffer_vector[i].value, DATA_SIZE);
+    }
+    output.close();
+}
+
 int input(string in_name) {
     ifstream input;
     input.open(in_name, ios::in | ios::binary);
@@ -64,20 +78,14 @@ int input(string in_name) {
             buffer_vector.push_back(r);
         }
 
-        sort(buffer_vector.begin(), buffer_vector.end(), [](const Record& r1, const Record& r2) {
-            return memcmp(r1.value, r2.value, DATA_SIZE) <= 0;
-        });
+        vector<thread> threads;
+        threads.push_back(thread(thread_sort, ref(buffer_vector), part_num++));
 
-        string part_name = "part_" + to_string(part_num);
-        part_names.push_back(part_name);
-
-        // write the buffer vector to output file
-        ofstream output(part_name, ios::out | ios::binary);
-        for (int i = 0; i < buffer_vector.size(); i++) {
-            output.write(buffer_vector[i].value, DATA_SIZE);
+        for (int i = 0; i < threads.size(); i++) {
+            threads[i].join();
         }
 
-        part_num++;
+        threads.clear();
     }
     delete[] buffer;
     input.close();
