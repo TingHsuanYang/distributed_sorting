@@ -2,7 +2,7 @@ all:external_sort external_sort_mt master slave main
 external_sort:external_sort.cpp
 	g++ -o external_sort external_sort.cpp
 external_sort_mt:external_sort_mt.cpp
-	g++ -o external_sort_mt external_sort_mt.cpp
+	g++ -pthread -o external_sort_mt external_sort_mt.cpp
 master:master.cpp
 	g++ -o master master.cpp
 slave:slave.cpp
