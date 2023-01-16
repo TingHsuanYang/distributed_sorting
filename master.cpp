@@ -82,11 +82,11 @@ void thread_send(string inputName, long long pos, long long size, int client_fd,
     string out_name = "slave";
     out_name.append(to_string(client_idx)).append(".input");
     ofstream output(out_name, ios::out | ios::binary);
-    char buffer[BUFFER_SIZE];
+    char buffer_rcv[4096];
     ssize_t len;
     while (true)
     {
-        len = recv(client_fd, buffer, sizeof(buffer), 0);
+        len = recv(client_fd, buffer_rcv, sizeof(buffer_rcv), 0);
         if (len < 0)
         {
             printf("Fail to receive file.\n");
@@ -98,7 +98,7 @@ void thread_send(string inputName, long long pos, long long size, int client_fd,
             break;
         }
         printf("Received %ld bytes.\n", len);
-        output.write(buffer, len);
+        output.write(buffer_rcv, len);
     }
     output.close();
 }

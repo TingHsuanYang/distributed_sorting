@@ -88,6 +88,8 @@ int ExternalSort::input() {
     }
     delete[] buffer;
     input.close();
+
+    return 0;
 }
 
 // k-way merge
