@@ -1,9 +1,10 @@
 #include <string>
 #include <vector>
+
 class ExternalSort {
    public:
     ExternalSort(std::string inputName, std::string outputName);
-    ~ExternalSort(){};
+    ~ExternalSort();
     int run();
 
    private:

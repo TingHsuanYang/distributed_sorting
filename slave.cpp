@@ -17,12 +17,12 @@
 #include <vector>
 
 #include "external_sort.hpp"
-
-using namespace std;
 #define BUFFER_SIZE 4096
 
-Slave::Slave(string server_ip, int port) : server_ip(server_ip), port(port) {
-}
+using namespace std;
+
+Slave::Slave(string server_ip, int port) : server_ip(server_ip), port(port) {}
+Slave::~Slave() {}
 
 int Slave::run() {
     // create socket, AF_INET = IPv4, SOCK_STREAM = TCP
@@ -38,8 +38,8 @@ int Slave::run() {
     // set server address
     struct sockaddr_in server_addr;
     server_addr.sin_family = AF_INET;                            // IPv4
-    server_addr.sin_port = htons(port);                          // port
     server_addr.sin_addr.s_addr = inet_addr(server_ip.c_str());  // server IP address
+    server_addr.sin_port = htons(port);                          // port
     socklen_t server_addr_len = sizeof(server_addr);
 
     // connect to server
@@ -52,8 +52,8 @@ int Slave::run() {
     printf("Connected to server.\n");
 
     // receive file and write to disk
-    string out_name = "slave.input";
-    ofstream output(out_name, ios::out | ios::binary);
+    string input_name = "slave.input";
+    ofstream output(input_name, ios::out | ios::binary);
     char buffer[BUFFER_SIZE];
     ssize_t len;
     while (true) {
@@ -73,56 +73,53 @@ int Slave::run() {
 
     // using external sort to sort records
     string sort_out_name = "slave.output";
-    ExternalSort* es = new ExternalSort(out_name, sort_out_name);
+    ExternalSort* es = new ExternalSort(input_name, sort_out_name);
     es->run();
-
     delete es;
 
     // send sorted data back to master
-    ifstream input;
-    input.open(sort_out_name, ios::in | ios::binary);
-    if (!input.good()) {
-        printf("Fail to open input file.\n");
-        close(socket_fd);
-        exit(1);
-    }
+    // ifstream input;
+    // input.open(sort_out_name, ios::in | ios::binary);
+    // if (!input.good()) {
+    //     printf("Fail to open input file.\n");
+    //     close(socket_fd);
+    //     exit(1);
+    // }
 
-    struct stat stat_buf;
-    int rc = stat(sort_out_name.c_str(), &stat_buf);
-    double file_size = rc == 0 ? stat_buf.st_size : -1;
-    printf("file size: %.2f GB\n", file_size / 1024.0 / 1024.0 / 1024.0);
+    // struct stat stat_buf;
+    // int rc = stat(sort_out_name.c_str(), &stat_buf);
+    // double file_size = rc == 0 ? stat_buf.st_size : -1;
+    // printf("file size: %.2f GB\n", file_size / 1024.0 / 1024.0 / 1024.0);
 
-    bzero(buffer, BUFFER_SIZE);
-    
-    while (!input.eof())
-    {
-        input.read(buffer, BUFFER_SIZE);
-        int read_size = input.gcount();
-        int send_size = send(socket_fd, buffer, read_size, 0);
-        if (send_size < 0) {
-            printf("Fail to send file to server.\n");
-            close(socket_fd);
-            exit(1);
-        }
-        printf("Send %d bytes to server\n", send_size);
-        bzero(buffer, BUFFER_SIZE);
-    }
+    // bzero(buffer, BUFFER_SIZE);
 
-    // send 0 bytes to server to indicate the end of file
-    int send_size = send(socket_fd, buffer, 0, 0);
-    if (send_size < 0) {
-        printf("Fail to send file to server.\n");
-        close(socket_fd);
-        exit(1);
-    }
-    printf("Send %d bytes to server\n", send_size);
+    // while (!input.eof()) {
+    //     input.read(buffer, BUFFER_SIZE);
+    //     int read_size = input.gcount();
+    //     int send_size = send(socket_fd, buffer, read_size, 0);
+    //     if (send_size < 0) {
+    //         printf("Fail to send file to server.\n");
+    //         close(socket_fd);
+    //         exit(1);
+    //     }
+    //     printf("Send %d bytes to server\n", send_size);
+    //     bzero(buffer, BUFFER_SIZE);
+    // }
+
+    // // send 0 bytes to server to indicate the end of file
+    // int send_size = send(socket_fd, buffer, 0, 0);
+    // if (send_size < 0) {
+    //     printf("Fail to send file to server.\n");
+    //     close(socket_fd);
+    //     exit(1);
+    // }
+    // printf("Send %d bytes to server\n", send_size);
 
     // close input file
-    input.close();
+    // input.close();
 
     // close socket
     close(socket_fd);
-
 
     return 0;
 }

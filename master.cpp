@@ -17,8 +17,8 @@
 #include <fstream>
 #include <iostream>
 #include <string>
-#include <vector>
 #include <thread>
+#include <vector>
 
 #define BUFFER_SIZE 1000
 
@@ -28,34 +28,31 @@ Master::Master(int port, int slaveNum, string inputName, string outputName)
     : port(port),
       slaveNum(slaveNum),
       inputName(inputName),
-      outputName(outputName) {
-}
+      outputName(outputName) {}
 
+Master::~Master() {}
 
-void thread_send(string inputName, long long pos, long long size, int client_fd, int client_idx){
+void Master::thread_send(string inputName, long long pos, long long size, int client_fd, int client_idx) {
     ifstream input;
     input.open(inputName, ios::in | ios::binary);
-    if (!input.good())
-    {
+    if (!input.good()) {
         printf("Fail to open input file.\n");
         close(client_fd);
         exit(1);
     }
 
-    int fd_index = 0;
-    char *buffer = new char[BUFFER_SIZE];
-    while (size > 0)
-    {
-        input.seekg(pos);
-        if(size > BUFFER_SIZE) {
+    // read the file chunk and send to client
+    char* buffer = new char[BUFFER_SIZE];
+    input.seekg(pos);
+    while (size > 0) {
+        if (size > BUFFER_SIZE) {
             input.read(buffer, BUFFER_SIZE);
         } else {
             input.read(buffer, size);
         }
         int read_size = input.gcount();
         int send_size = send(client_fd, buffer, read_size, 0);
-        if (send_size < 0)
-        {
+        if (send_size < 0) {
             printf("Fail to send file to client.\n");
             close(client_fd);
             exit(1);
@@ -65,9 +62,9 @@ void thread_send(string inputName, long long pos, long long size, int client_fd,
         size -= read_size;
     }
 
+    // send empty file to client
     int send_size = send(client_fd, buffer, 0, 0);
-    if (send_size < 0)
-    {
+    if (send_size < 0) {
         printf("Fail to send file to client.\n");
         close(client_fd);
         exit(1);
@@ -78,33 +75,27 @@ void thread_send(string inputName, long long pos, long long size, int client_fd,
     input.close();
 
     // receive sorted parts from clients
-    // receive file and write to disk
-    string out_name = "slave";
-    out_name.append(to_string(client_idx)).append(".input");
-    ofstream output(out_name, ios::out | ios::binary);
-    char buffer_rcv[4096];
-    ssize_t len;
-    while (true)
-    {
-        len = recv(client_fd, buffer_rcv, sizeof(buffer_rcv), 0);
-        if (len < 0)
-        {
-            printf("Fail to receive file.\n");
-            close(client_fd);
-            exit(1);
-        }
-        else if (len == 0)
-        {
-            break;
-        }
-        printf("Received %ld bytes.\n", len);
-        output.write(buffer_rcv, len);
-    }
-    output.close();
+    // string out_name = "slave";
+    // out_name.append(to_string(client_idx)).append(".part");
+    // ofstream output(out_name, ios::out | ios::binary);
+    // char buffer_rcv[4096];
+    // ssize_t len;
+    // while (true) {
+    //     len = recv(client_fd, buffer_rcv, sizeof(buffer_rcv), 0);
+    //     if (len < 0) {
+    //         printf("Fail to receive file.\n");
+    //         close(client_fd);
+    //         exit(1);
+    //     } else if (len == 0) {
+    //         break;
+    //     }
+    //     printf("Received %ld bytes.\n", len);
+    //     output.write(buffer_rcv, len);
+    // }
+    // output.close();
 }
 
-int Master::run()
-{
+int Master::run() {
     // create socket, AF_INET = IPv4, SOCK_STREAM = TCP
     int socket_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (socket_fd < 0) {
@@ -131,7 +122,7 @@ int Master::run()
     printf("Server is listening on port %d\n", port);
 
     // listen for incoming connections
-    if (listen(socket_fd, 5) < 0) {
+    if (listen(socket_fd, slaveNum) < 0) {
         printf("Fail to listen.");
         close(socket_fd);
         exit(1);
@@ -154,36 +145,26 @@ int Master::run()
         printf("Get connection from client: [%s:%d]\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
     }
 
-    // send file to clients
-    ifstream input;
-    input.open(inputName, ios::in | ios::binary);
-    if (!input.good()) {
-        printf("Fail to open input file.\n");
-        close(socket_fd);
-        exit(1);
-    }
-
     struct stat stat_buf;
     int rc = stat(inputName.c_str(), &stat_buf);
     double file_size = rc == 0 ? stat_buf.st_size : -1;
     printf("file size: %.2f GB\n", file_size / 1024.0 / 1024.0 / 1024.0);
 
     // divide the file into 5 parts and send to clients
-    long long recNum = file_size/100;
+    long long recNum = file_size / 100;
     // records number per slave
-    long long partRecNum = recNum/slaveNum;
-    int left = (int)recNum%slaveNum;
-
+    long long partRecNum = recNum / slaveNum;
+    int remainRecNum = (int)recNum % slaveNum;
 
     vector<thread> threads;
     long long currPos = 0;
-    for(int i = 0; i < slaveNum; i++){
+    for (int i = 0; i < slaveNum; i++) {
         long long size = partRecNum * 100;
-        if(left > 0){
+        if (remainRecNum > 0) {
             size += 100;
-            left--;
+            remainRecNum--;
         }
-        threads.push_back(thread(thread_send, inputName, currPos, size, client_fds[i], i));
+        threads.push_back(thread(&Master::thread_send, this, inputName, currPos, size, client_fds[i], i));
         currPos += size;
     }
 
@@ -192,44 +173,11 @@ int Master::run()
     }
 
     threads.clear();
-    // int fd_index = 0;
-    // char *buffer = new char[BUFFER_SIZE];
-    // while (!input.eof())
-    // {
-    //     input.read(buffer, BUFFER_SIZE);
-    //     int read_size = input.gcount();
-    //     int send_size = send(client_fds[fd_index], buffer, read_size, 0);
-    //     if (send_size < 0)
-    //     {
-    //         printf("Fail to send file to client.\n");
-    //         close(socket_fd);
-    //         exit(1);
-    //     }
-    //     printf("Send %d bytes to client %d\n", send_size, fd_index);
-    //     fd_index = (fd_index + 1) % slaveNum;
-    //     bzero(buffer, BUFFER_SIZE);
-    // }
-
-    // // send 0 bytes to slaves to indicate the end of file
-    // for (int i = 0; i < slaveNum; i++)
-    // {
-    //     int send_size = send(client_fds[i], buffer, 0, 0);
-    //     if (send_size < 0)
-    //     {
-    //         printf("Fail to send file to client.\n");
-    //         close(socket_fd);
-    //         exit(1);
-    //     }
-    //     printf("Send %d bytes to client %d\n", send_size, i);
-    // }
-
-    // // close input file
-    // input.close();
 
     // receive sorted parts from clients
 
     // closing the connected socket
-    for(int i = 0; i < slaveNum; i++){
+    for (int i = 0; i < slaveNum; i++) {
         close(client_fds[i]);
     }
     // closing the listening socket

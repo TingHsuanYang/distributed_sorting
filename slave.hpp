@@ -3,6 +3,7 @@
 class Slave {
    public:
     Slave(std::string server_ip, int port);
+    ~Slave();
     int run();
 
    private:

@@ -17,10 +17,8 @@
 
 using namespace std;
 
-ExternalSort::ExternalSort(string inputName, string outputName)
-    : inputName(inputName),
-      outputName(outputName) {
-}
+ExternalSort::ExternalSort(string inputName, string outputName) : inputName(inputName), outputName(outputName) {}
+ExternalSort::~ExternalSort() {}
 
 struct Record {
     char value[DATA_SIZE];
@@ -47,7 +45,7 @@ int ExternalSort::input() {
     input.open(inputName, ios::in | ios::binary);
 
     if (!input.good()) {
-        cout << error_message;
+        printf("Fail to open input file.\n");
         return 1;
     }
 

@@ -37,7 +37,7 @@ int main(int argc, char** argv) {
         {0, 0, 0, 0}};
     int option_index = 0;
     int c, port, num;
-    string mode, input, output, ip;
+    string mode, input, output, server_ip;
 
     while ((c = getopt_long(argc, argv, "m:p:n:i:o:s:", long_options, &option_index)) != -1) {
         switch (c) {
@@ -57,7 +57,7 @@ int main(int argc, char** argv) {
                 output = optarg;
                 break;
             case 's':
-                ip = optarg;
+                server_ip = optarg;
                 break;
             case 'h':
                 help();
@@ -80,7 +80,7 @@ int main(int argc, char** argv) {
             help();
             return 1;
         }
-        Slave slave(ip, port);
+        Slave slave(server_ip, port);
         slave.run();
     } else {
         help();
