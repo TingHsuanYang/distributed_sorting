@@ -42,8 +42,23 @@ int Slave::run() {
     server_addr.sin_port = htons(port);                          // port
     socklen_t server_addr_len = sizeof(server_addr);
 
+    // set client port
+    struct sockaddr_in client_addr;
+    client_addr.sin_family = AF_INET;          // IPv4
+    client_addr.sin_addr.s_addr = INADDR_ANY;  // Any IP address
+    client_addr.sin_port = htons(12346);           // Any port
+    socklen_t client_addr_len = sizeof(client_addr);
+
+    // bind socket to client port
+    int err = bind(socket_fd, (struct sockaddr*)&client_addr, client_addr_len);
+    if (err < 0) {
+        printf("Fail to bind socket to client port.\n");
+        close(socket_fd);
+        exit(1);
+    }
+
     // connect to server
-    int err = connect(socket_fd, (struct sockaddr*)&server_addr, server_addr_len);
+    err = connect(socket_fd, (struct sockaddr*)&server_addr, server_addr_len);
     if (err < 0) {
         printf("Fail to connect to server.\n");
         close(socket_fd);
