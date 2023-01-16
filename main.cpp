@@ -32,13 +32,14 @@ int main(int argc, char** argv) {
         {"num", required_argument, 0, 'n'},
         {"input", required_argument, 0, 'i'},
         {"output", required_argument, 0, 'o'},
+        {"server", required_argument, 0, 's'},
         {"help", no_argument, 0, 'h'},
         {0, 0, 0, 0}};
     int option_index = 0;
     int c, port, num;
-    string mode, input, output;
+    string mode, input, output, ip;
 
-    while ((c = getopt_long(argc, argv, "m:p:n:i:o:", long_options, &option_index)) != -1) {
+    while ((c = getopt_long(argc, argv, "m:p:n:i:o:s:", long_options, &option_index)) != -1) {
         switch (c) {
             case 'm':
                 mode = optarg;
@@ -55,6 +56,9 @@ int main(int argc, char** argv) {
             case 'o':
                 output = optarg;
                 break;
+            case 's':
+                ip = optarg;
+                break;
             case 'h':
                 help();
                 return 0;
@@ -69,15 +73,15 @@ int main(int argc, char** argv) {
             help();
             return 1;
         }
-        // Master master(port, num, input, output);
-        // master.run();
+        Master master(port, num, input, output);
+        master.run();
     } else if (mode == "slave") {
         if (port == 0) {
             help();
             return 1;
         }
-        // Slave slave(ip, port);
-        // slave.run();
+        Slave slave(ip, port);
+        slave.run();
     } else {
         help();
         return 1;
