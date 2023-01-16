@@ -7,6 +7,7 @@
  * usage: ./server input output
  */
 #include "master.hpp"
+
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
@@ -26,32 +27,28 @@ Master::Master(int port, int slaveNum, string inputName, string outputName)
     : port(port),
       slaveNum(slaveNum),
       inputName(inputName),
-      outputName(outputName)
-{
+      outputName(outputName) {
 }
 
-int Master::run()
-{
+int Master::run() {
     // create socket, AF_INET = IPv4, SOCK_STREAM = TCP
     int socket_fd = socket(AF_INET, SOCK_STREAM, 0);
-    if (socket_fd < 0)
-    {
+    if (socket_fd < 0) {
         printf("Fail to create a socket.");
     }
 
     // set reuse address
     int reuse_addr = 1;
-    setsockopt(socket_fd, SOL_SOCKET, SO_REUSEADDR, (void *)&reuse_addr, sizeof(reuse_addr));
+    setsockopt(socket_fd, SOL_SOCKET, SO_REUSEADDR, (void*)&reuse_addr, sizeof(reuse_addr));
 
     // set server address
     struct sockaddr_in server_addr;
     server_addr.sin_family = AF_INET;          // IPv4
-    server_addr.sin_port = htons(port); // port
+    server_addr.sin_port = htons(port);        // port
     server_addr.sin_addr.s_addr = INADDR_ANY;  // Any IP address
 
     // bind socket to address
-    if (bind(socket_fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0)
-    {
+    if (bind(socket_fd, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
         printf("Fail to bind socket to address.");
         close(socket_fd);
         exit(1);
@@ -60,22 +57,19 @@ int Master::run()
     printf("Server is listening on port %d\n", port);
 
     // listen for incoming connections
-    if (listen(socket_fd, 5) < 0)
-    {
+    if (listen(socket_fd, 5) < 0) {
         printf("Fail to listen.");
         close(socket_fd);
         exit(1);
     }
 
     // wait until we have 5 client connections
-    while (client_fds.size() < slaveNum)
-    {
+    while (client_fds.size() < slaveNum) {
         // accept incoming connection
         struct sockaddr_in client_addr;
         socklen_t client_addr_len = sizeof(client_addr);
-        int client_fd = accept(socket_fd, (struct sockaddr *)&client_addr, &client_addr_len);
-        if (client_fd < 0)
-        {
+        int client_fd = accept(socket_fd, (struct sockaddr*)&client_addr, &client_addr_len);
+        if (client_fd < 0) {
             printf("Fail to accept incoming connection.");
             close(socket_fd);
             exit(1);
@@ -89,8 +83,7 @@ int Master::run()
     // send file to clients
     ifstream input;
     input.open(inputName, ios::in | ios::binary);
-    if (!input.good())
-    {
+    if (!input.good()) {
         printf("Fail to open input file.\n");
         close(socket_fd);
         exit(1);
@@ -103,14 +96,12 @@ int Master::run()
 
     // divide the file into 5 parts and send to clients
     int fd_index = 0;
-    char *buffer = new char[BUFFER_SIZE];
-    while (!input.eof())
-    {
+    char* buffer = new char[BUFFER_SIZE];
+    while (!input.eof()) {
         input.read(buffer, BUFFER_SIZE);
         int read_size = input.gcount();
         int send_size = send(client_fds[fd_index], buffer, read_size, 0);
-        if (send_size < 0)
-        {
+        if (send_size < 0) {
             printf("Fail to send file to client.\n");
             close(socket_fd);
             exit(1);
@@ -121,11 +112,9 @@ int Master::run()
     }
 
     // send 0 bytes to slaves to indicate the end of file
-    for (int i = 0; i < slaveNum; i++)
-    {
+    for (int i = 0; i < slaveNum; i++) {
         int send_size = send(client_fds[i], buffer, 0, 0);
-        if (send_size < 0)
-        {
+        if (send_size < 0) {
             printf("Fail to send file to client.\n");
             close(socket_fd);
             exit(1);

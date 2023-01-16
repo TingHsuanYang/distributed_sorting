@@ -1,11 +1,18 @@
-all:external_sort external_sort_mt server slave
-external_sort:external_sort.cpp
-	g++ -o external_sort external_sort.cpp
-external_sort_mt:external_sort_mt.cpp
-	g++ -o external_sort_mt external_sort_mt.cpp
-server:server.cpp
-	g++ -o server server.cpp
-slave:slave.cpp
-	g++ -o slave slave.cpp
+objects = master.o slave.o external_sort.o
+
+all:main
+main:main.cpp $(objects)
+	g++ -o main main.cpp $(objects) -pthread
+master:master.cpp master.hpp
+	g++ -o master  master.cpp -pthread
+slave:slave.cpp slave.hpp external_sort.hpp external_sort.o
+	g++ -o slave slave.cpp external_sort.o -pthread
+
+external_sort.o:external_sort.hpp
+external_sort_mt.o:external_sort_mt.hpp
+master.o:master.hpp
+slave.o:slave.hpp
+
+.PHONY:clean
 clean:
-	rm -f external_sort external_sort_mt server slave
+	-rm main $(objects)

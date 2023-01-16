@@ -1,4 +1,5 @@
 #include "external_sort.hpp"
+
 #include <sys/stat.h>
 
 #include <algorithm>
@@ -18,8 +19,7 @@ using namespace std;
 
 ExternalSort::ExternalSort(string inputName, string outputName)
     : inputName(inputName),
-      outputName(outputName)
-{
+      outputName(outputName) {
 }
 
 vector<string> part_names;
@@ -139,7 +139,6 @@ void ExternalSort::merge() {
 }
 
 int ExternalSort::run() {
-
     auto start = chrono::high_resolution_clock::now();
 
     // read the file and split it into parts (sorted)
