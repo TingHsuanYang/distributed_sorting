@@ -13,13 +13,14 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include <chrono>
 #include <cstring>
 #include <fstream>
 #include <iostream>
+#include <queue>
 #include <string>
 #include <thread>
 #include <vector>
-#include <queue>
 
 #define BUFFER_SIZE 1000
 #define DATA_SIZE 100
@@ -50,44 +51,8 @@ Master::Master(int port, int slaveNum, string inputName, string outputName)
 
 Master::~Master() {}
 
-void Master::thread_recv(int socket_fd, int client_idx){
-    // accept incoming connection
-    struct sockaddr_in client_addr;
-    socklen_t client_addr_len = sizeof(client_addr);
-    int client_fd = accept(socket_fd, (struct sockaddr*)&client_addr, &client_addr_len);
-    if (client_fd < 0) {
-        printf("Fail to accept incoming connection.");
-        close(socket_fd);
-        exit(1);
-    }
-    printf("Get connection from client: [%s:%d]\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
-
-    // receive sorted parts from clients
-    string out_name = "slave";
-    out_name.append(to_string(client_idx)).append(".part");
-    part_names.push_back(out_name);
-    ofstream output(out_name, ios::out | ios::binary);
-    char buffer_rcv[4096];
-    ssize_t len;
-    while (true) {
-        len = recv(client_fd, buffer_rcv, sizeof(buffer_rcv), 0);
-        if (len < 0) {
-            printf("Fail to receive file.\n");
-            close(client_fd);
-            exit(1);
-        } else if (len == 0) {
-            break;
-        }
-        printf("Received %ld bytes.\n", len);
-        output.write(buffer_rcv, len);
-    }
-    output.close();
-
-    // close client socket
-    close(client_fd);
-}
-
 void Master::thread_send(string inputName, long long pos, long long size, int client_fd, int client_idx) {
+    printf("Send file to client %d...\n", client_idx);
     ifstream input;
     input.open(inputName, ios::in | ios::binary);
     if (!input.good()) {
@@ -95,6 +60,9 @@ void Master::thread_send(string inputName, long long pos, long long size, int cl
         close(client_fd);
         exit(1);
     }
+
+    // calculate the time of sending file
+    auto start = chrono::high_resolution_clock::now();
 
     // read the file chunk and send to client
     char* buffer = new char[BUFFER_SIZE];
@@ -112,19 +80,23 @@ void Master::thread_send(string inputName, long long pos, long long size, int cl
             close(client_fd);
             exit(1);
         }
-        printf("Send %d bytes to client %d\n", send_size, client_idx);
-        bzero(buffer, BUFFER_SIZE);
+        // printf("Send %d bytes to client %d\n", send_size, client_idx);
+        memset(buffer, 0, BUFFER_SIZE);
         size -= read_size;
     }
 
-    // send empty file to client
+    // send 0 to client to indicate the end of file
     int send_size = send(client_fd, buffer, 0, 0);
     if (send_size < 0) {
         printf("Fail to send file to client.\n");
         close(client_fd);
         exit(1);
     }
-    printf("Send %d bytes to client %d\n", send_size, client_idx);
+
+    // calculate the time of sending file
+    auto end = chrono::high_resolution_clock::now();
+    auto duration = chrono::duration_cast<chrono::microseconds>(end - start);
+    printf("Send file to client %d in %.2f seconds.\n", client_idx, duration.count() * 1.0 / 1000000);
 
     // close input file
     input.close();
@@ -133,10 +105,62 @@ void Master::thread_send(string inputName, long long pos, long long size, int cl
     close(client_fd);
 }
 
+void Master::thread_recv(int socket_fd, int client_idx) {
+    printf("Receive file from client %d...\n", client_idx);
+    // accept incoming connection
+    struct sockaddr_in client_addr;
+    socklen_t client_addr_len = sizeof(client_addr);
+    int client_fd = accept(socket_fd, (struct sockaddr*)&client_addr, &client_addr_len);
+    if (client_fd < 0) {
+        printf("Fail to accept incoming connection.");
+        close(socket_fd);
+        exit(1);
+    }
+    printf("Get connection from client: [%s:%d]\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
+
+    // calculate the time of receiving file
+    auto start = chrono::high_resolution_clock::now();
+
+    // receive sorted parts from clients
+    string part_name = "slave";
+    part_name.append(to_string(client_idx)).append(".part");
+    part_names.push_back(part_name);
+    ofstream output(part_name, ios::out | ios::binary);
+    char buffer[4096];
+    ssize_t len;
+    while (true) {
+        len = recv(client_fd, buffer, sizeof(buffer), 0);
+        if (len < 0) {
+            printf("Fail to receive file.\n");
+            close(client_fd);
+            exit(1);
+        } else if (len == 0) {
+            break;
+        }
+        // printf("Received %ld bytes.\n", len);
+        output.write(buffer, len);
+    }
+    output.close();
+
+    // calculate the time of receiving file
+    auto end = chrono::high_resolution_clock::now();
+    auto duration = chrono::duration_cast<chrono::microseconds>(end - start);
+    printf("Receive file from client %d in %.2f seconds.\n", client_idx, duration.count() * 1.0 / 1000000);
+
+    // close client socket
+    close(client_fd);
+}
+
 // k-way merge
 void Master::merge() {
+    printf("Merge the sorted parts...\n");
+
+    // open the output file
     ofstream output(outputName, ios::out | ios::binary);
     priority_queue<HeapNode*, vector<HeapNode*>, Comparator> heap;
+
+    // calculate the time of merging
+    auto start = chrono::high_resolution_clock::now();
 
     // open all the part files
     vector<ifstream> part_files;
@@ -177,9 +201,17 @@ void Master::merge() {
         part_files[i].close();
     }
     output.close();
+
+    // calculate the time of merging
+    auto end = chrono::high_resolution_clock::now();
+    auto duration = chrono::duration_cast<chrono::microseconds>(end - start);
+    printf("Merge the sorted parts in %.2f seconds.\n", duration.count() * 1.0 / 1000000);
 }
 
 int Master::run() {
+    // calculate the total time of running
+    auto start = chrono::high_resolution_clock::now();
+
     // create socket, AF_INET = IPv4, SOCK_STREAM = TCP
     int socket_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (socket_fd < 0) {
@@ -212,7 +244,7 @@ int Master::run() {
         exit(1);
     }
 
-    // wait until we have 5 client connections
+    // wait until we have reached the number of slaves
     while (client_fds.size() < slaveNum) {
         // accept incoming connection
         struct sockaddr_in client_addr;
@@ -255,8 +287,10 @@ int Master::run() {
     for (int i = 0; i < threads.size(); i++) {
         threads[i].join();
     }
-
     threads.clear();
+
+    // remove the original input file
+    remove(inputName.c_str());
 
     // clear client socket fds
     client_fds.clear();
@@ -281,8 +315,12 @@ int Master::run() {
     }
 
     // closing the listening socket
-    shutdown(socket_fd, SHUT_RDWR);
+    close(socket_fd);
 
-    /* code */
+    // calculate the total time of running
+    auto end = chrono::high_resolution_clock::now();
+    auto duration = chrono::duration_cast<chrono::microseconds>(end - start);
+    printf("Total running time: %.2f seconds for file size: %.2f GB with %d slaves\n", duration.count() * 1.0 / 1000000, file_size / 1024.0 / 1024.0 / 1024.0, slaveNum);
+
     return 0;
 }

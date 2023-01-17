@@ -10,6 +10,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include <chrono>
 #include <cstring>
 #include <fstream>
 #include <iostream>
@@ -18,7 +19,7 @@
 
 #include "external_sort.hpp"
 #define BUFFER_SIZE 4096
-#define CLIENT_PORT 12010
+// #define CLIENT_PORT 12010
 
 using namespace std;
 
@@ -44,22 +45,22 @@ int Slave::run() {
     socklen_t server_addr_len = sizeof(server_addr);
 
     // set client port
-    struct sockaddr_in client_addr;
-    client_addr.sin_family = AF_INET;          // IPv4
-    client_addr.sin_addr.s_addr = INADDR_ANY;  // Any IP address
-    client_addr.sin_port = htons(12346);           // Any port
-    socklen_t client_addr_len = sizeof(client_addr);
+    // struct sockaddr_in client_addr;
+    // client_addr.sin_family = AF_INET;          // IPv4
+    // client_addr.sin_addr.s_addr = INADDR_ANY;  // Any IP address
+    // client_addr.sin_port = htons(12346);           // Any port
+    // socklen_t client_addr_len = sizeof(client_addr);
 
     // bind socket to client port
-    int err = bind(socket_fd, (struct sockaddr*)&client_addr, client_addr_len);
-    if (err < 0) {
-        printf("Fail to bind socket to client port.\n");
-        close(socket_fd);
-        exit(1);
-    }
+    // int err = bind(socket_fd, (struct sockaddr*)&client_addr, client_addr_len);
+    // if (err < 0) {
+    //     printf("Fail to bind socket to client port.\n");
+    //     close(socket_fd);
+    //     exit(1);
+    // }
 
     // connect to server
-    err = connect(socket_fd, (struct sockaddr*)&server_addr, server_addr_len);
+    int err = connect(socket_fd, (struct sockaddr*)&server_addr, server_addr_len);
     if (err < 0) {
         printf("Fail to connect to server.\n");
         close(socket_fd);
@@ -72,6 +73,11 @@ int Slave::run() {
     ofstream output(input_name, ios::out | ios::binary);
     char buffer[BUFFER_SIZE];
     ssize_t len;
+
+    // calculate time for receiving file
+    auto start = chrono::high_resolution_clock::now();
+
+    printf("Receiving file...\n");
     while (true) {
         len = recv(socket_fd, buffer, sizeof(buffer), 0);
         if (len < 0) {
@@ -81,21 +87,36 @@ int Slave::run() {
         } else if (len == 0) {
             break;
         }
-        printf("Received %ld bytes.\n", len);
+        // printf("Received %ld bytes.\n", len);
         output.write(buffer, len);
     }
+    printf("Received file finished.\n");
 
     output.close();
     // close socket
     close(socket_fd);
 
+    // calculate time for receiving file
+    auto end = chrono::high_resolution_clock::now();
+    auto duration = chrono::duration_cast<chrono::milliseconds>(end - start);
+    printf("Time for receiving file: %.2f seconds.\n", duration.count() / 1000.0);
+
+    // calculate time for sorting file
+    start = chrono::high_resolution_clock::now();
+
+    printf("Sorting file...\n");
     // using external sort to sort records
     string sort_out_name = "slave.output";
     ExternalSort* es = new ExternalSort(input_name, sort_out_name);
     es->run();
     delete es;
+    printf("Sorting file finished.\n");
 
-   
+    // calculate time for sorting file
+    end = chrono::high_resolution_clock::now();
+    duration = chrono::duration_cast<chrono::milliseconds>(end - start);
+    printf("Time for sorting file: %.2f seconds.\n", duration.count() / 1000.0);
+
     // send sorted data back to master
     // create socket, AF_INET = IPv4, SOCK_STREAM = TCP
     socket_fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -109,16 +130,16 @@ int Slave::run() {
 
     // Explicitly assigning port number 12010 by
     // binding client with that port
-    my_addr.sin_family = AF_INET;
-    my_addr.sin_addr.s_addr = INADDR_ANY;
-    my_addr.sin_port = htons(CLIENT_PORT);
-    my_addr.sin_addr.s_addr = inet_addr(server_ip.c_str());
-    if (bind(socket_fd, (struct sockaddr*) &my_addr, sizeof(struct sockaddr_in)) == 0){
-        printf("Binded client to port %d Correctly\n", CLIENT_PORT);
-    } else {
-        printf("Unable to bind client to port %d\n", CLIENT_PORT);
-    }
-     
+    // my_addr.sin_family = AF_INET;
+    // my_addr.sin_addr.s_addr = INADDR_ANY;
+    // my_addr.sin_port = htons(CLIENT_PORT);
+    // my_addr.sin_addr.s_addr = inet_addr(server_ip.c_str());
+    // if (bind(socket_fd, (struct sockaddr*) &my_addr, sizeof(struct sockaddr_in)) == 0){
+    //     printf("Binded client to port %d Correctly\n", CLIENT_PORT);
+    // } else {
+    //     printf("Unable to bind client to port %d\n", CLIENT_PORT);
+    // }
+
     // connect to server
     err = connect(socket_fd, (struct sockaddr*)&server_addr, server_addr_len);
     if (err < 0) {
@@ -136,13 +157,17 @@ int Slave::run() {
         exit(1);
     }
 
+    // calculate time for sending file
+    start = chrono::high_resolution_clock::now();
+
     struct stat stat_buf;
     int rc = stat(sort_out_name.c_str(), &stat_buf);
     double file_size = rc == 0 ? stat_buf.st_size : -1;
     printf("file size: %.2f GB\n", file_size / 1024.0 / 1024.0 / 1024.0);
 
-    bzero(buffer, BUFFER_SIZE);
-
+    printf("Sending file...\n");
+    // send file to server
+    memset(buffer, 0, BUFFER_SIZE);
     while (!input.eof()) {
         input.read(buffer, BUFFER_SIZE);
         int read_size = input.gcount();
@@ -153,7 +178,7 @@ int Slave::run() {
             exit(1);
         }
         // printf("Send %d bytes to server\n", send_size);
-        bzero(buffer, BUFFER_SIZE);
+        memset(buffer, 0, BUFFER_SIZE);
     }
 
     // send 0 bytes to server to indicate the end of file
@@ -163,7 +188,12 @@ int Slave::run() {
         close(socket_fd);
         exit(1);
     }
-    printf("Send %d bytes to server\n", send_size);
+    printf("Send file finished.\n");
+
+    // calculate time for sending file
+    end = chrono::high_resolution_clock::now();
+    duration = chrono::duration_cast<chrono::milliseconds>(end - start);
+    printf("Time for sending file: %.2f seconds.\n", duration.count() / 1000.0);
 
     // close input file
     input.close();
