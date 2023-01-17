@@ -104,6 +104,9 @@ void Master::thread_send(string inputName, long long pos, long long size, int cl
     // close input file
     input.close();
 
+    // free buffer
+    delete [] buffer;
+
     // close client socket
     close(client_fd);
 }
@@ -136,7 +139,7 @@ void Master::thread_recv(int socket_fd, int client_idx) {
     mtx.unlock();
 
     ofstream output(part_name, ios::out | ios::binary);
-    char buffer[4096];
+    char* buffer = new char[4096];
     ssize_t len;
     while (true) {
         len = recv(client_fd, buffer, sizeof(buffer), 0);
@@ -156,6 +159,9 @@ void Master::thread_recv(int socket_fd, int client_idx) {
     auto end = chrono::high_resolution_clock::now();
     auto duration = chrono::duration_cast<chrono::microseconds>(end - start);
     printf("Finish receiving file from client %d in %.2f seconds.\n", client_idx, duration.count() * 1.0 / 1000000);
+
+    // free buffer
+    delete [] buffer;
 
     // close client socket
     close(client_fd);
@@ -180,7 +186,7 @@ void Master::merge() {
     }
 
     // read the first record of each part file
-    char buffer[DATA_SIZE];
+    char* buffer = new char[DATA_SIZE];
     for (int i = 0; i < part_files.size(); i++) {
         part_files[i].read(buffer, DATA_SIZE);
         if (part_files[i].gcount() > 0) {
@@ -205,6 +211,9 @@ void Master::merge() {
 
         delete node;
     }
+
+    // free buffer
+    delete [] buffer;
 
     // close all the part files
     for (int i = 0; i < part_files.size(); i++) {
