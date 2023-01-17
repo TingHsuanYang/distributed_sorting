@@ -106,7 +106,7 @@ void Master::thread_send(string inputName, long long pos, long long size, int cl
 }
 
 void Master::thread_recv(int socket_fd, int client_idx) {
-    printf("Receive file from client %d...\n", client_idx);
+    
     // accept incoming connection
     struct sockaddr_in client_addr;
     socklen_t client_addr_len = sizeof(client_addr);
@@ -120,6 +120,8 @@ void Master::thread_recv(int socket_fd, int client_idx) {
 
     // calculate the time of receiving file
     auto start = chrono::high_resolution_clock::now();
+
+    printf("Receive file from client %d...\n", client_idx);
 
     // receive sorted parts from clients
     string part_name = "slave";
@@ -145,7 +147,7 @@ void Master::thread_recv(int socket_fd, int client_idx) {
     // calculate the time of receiving file
     auto end = chrono::high_resolution_clock::now();
     auto duration = chrono::duration_cast<chrono::microseconds>(end - start);
-    printf("Receive file from client %d in %.2f seconds.\n", client_idx, duration.count() * 1.0 / 1000000);
+    printf("Finish receiving file from client %d in %.2f seconds.\n", client_idx, duration.count() * 1.0 / 1000000);
 
     // close client socket
     close(client_fd);

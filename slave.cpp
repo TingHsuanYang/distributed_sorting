@@ -19,7 +19,6 @@
 
 #include "external_sort.hpp"
 #define BUFFER_SIZE 4096
-// #define CLIENT_PORT 12010
 
 using namespace std;
 
@@ -43,21 +42,6 @@ int Slave::run() {
     server_addr.sin_addr.s_addr = inet_addr(server_ip.c_str());  // server IP address
     server_addr.sin_port = htons(port);                          // port
     socklen_t server_addr_len = sizeof(server_addr);
-
-    // set client port
-    // struct sockaddr_in client_addr;
-    // client_addr.sin_family = AF_INET;          // IPv4
-    // client_addr.sin_addr.s_addr = INADDR_ANY;  // Any IP address
-    // client_addr.sin_port = htons(12346);           // Any port
-    // socklen_t client_addr_len = sizeof(client_addr);
-
-    // bind socket to client port
-    // int err = bind(socket_fd, (struct sockaddr*)&client_addr, client_addr_len);
-    // if (err < 0) {
-    //     printf("Fail to bind socket to client port.\n");
-    //     close(socket_fd);
-    //     exit(1);
-    // }
 
     // connect to server
     int err = connect(socket_fd, (struct sockaddr*)&server_addr, server_addr_len);
@@ -101,21 +85,17 @@ int Slave::run() {
     auto duration = chrono::duration_cast<chrono::milliseconds>(end - start);
     printf("Time for receiving file: %.2f seconds.\n", duration.count() / 1000.0);
 
-    // calculate time for sorting file
-    start = chrono::high_resolution_clock::now();
-
     printf("Sorting file...\n");
     // using external sort to sort records
-    string sort_out_name = "slave.output";
+    string sort_out_name = "sorted.output";
     ExternalSort* es = new ExternalSort(input_name, sort_out_name);
     es->run();
     delete es;
-    printf("Sorting file finished.\n");
 
-    // calculate time for sorting file
-    end = chrono::high_resolution_clock::now();
-    duration = chrono::duration_cast<chrono::milliseconds>(end - start);
-    printf("Time for sorting file: %.2f seconds.\n", duration.count() / 1000.0);
+    // remove input file
+    remove(input_name.c_str());
+
+    printf("Sorting file finished.\n");
 
     // send sorted data back to master
     // create socket, AF_INET = IPv4, SOCK_STREAM = TCP
@@ -127,18 +107,6 @@ int Slave::run() {
     // set reuse address
     reuse_addr = 1;
     setsockopt(socket_fd, SOL_SOCKET, SO_REUSEADDR, (void*)&reuse_addr, sizeof(reuse_addr));
-
-    // Explicitly assigning port number 12010 by
-    // binding client with that port
-    // my_addr.sin_family = AF_INET;
-    // my_addr.sin_addr.s_addr = INADDR_ANY;
-    // my_addr.sin_port = htons(CLIENT_PORT);
-    // my_addr.sin_addr.s_addr = inet_addr(server_ip.c_str());
-    // if (bind(socket_fd, (struct sockaddr*) &my_addr, sizeof(struct sockaddr_in)) == 0){
-    //     printf("Binded client to port %d Correctly\n", CLIENT_PORT);
-    // } else {
-    //     printf("Unable to bind client to port %d\n", CLIENT_PORT);
-    // }
 
     // connect to server
     err = connect(socket_fd, (struct sockaddr*)&server_addr, server_addr_len);

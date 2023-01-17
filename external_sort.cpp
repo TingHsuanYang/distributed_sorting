@@ -151,7 +151,7 @@ int ExternalSort::run() {
     }
 
     auto end = chrono::high_resolution_clock::now();
-    printf("execution time: %.3f seconds\n", chrono::duration_cast<chrono::milliseconds>(end - start).count() / 1000.0);
+    printf("sort time: %.2f s\n", chrono::duration_cast<chrono::milliseconds>(end - start).count() / 1000.0);
 
     return 0;
 }
