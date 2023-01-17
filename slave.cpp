@@ -18,6 +18,7 @@
 
 #include "external_sort.hpp"
 #define BUFFER_SIZE 4096
+#define CLIENT_PORT 12010
 
 using namespace std;
 
@@ -36,12 +37,24 @@ int Slave::run() {
     setsockopt(socket_fd, SOL_SOCKET, SO_REUSEADDR, (void*)&reuse_addr, sizeof(reuse_addr));
 
     // set server address
-    struct sockaddr_in server_addr;
+    struct sockaddr_in server_addr, my_addr;
     server_addr.sin_family = AF_INET;                            // IPv4
     server_addr.sin_addr.s_addr = inet_addr(server_ip.c_str());  // server IP address
     server_addr.sin_port = htons(port);                          // port
     socklen_t server_addr_len = sizeof(server_addr);
 
+    // Explicitly assigning port number 12010 by
+    // binding client with that port
+    my_addr.sin_family = AF_INET;
+    my_addr.sin_addr.s_addr = INADDR_ANY;
+    my_addr.sin_port = htons(CLIENT_PORT);
+    my_addr.sin_addr.s_addr = inet_addr(server_ip.c_str());
+    if (bind(socket_fd, (struct sockaddr*) &my_addr, sizeof(struct sockaddr_in)) == 0){
+        printf("Binded client to port %d Correctly\n", CLIENT_PORT);
+    } else {
+        printf("Unable to bind client to port %d\n", CLIENT_PORT);
+    }
+     
     // connect to server
     int err = connect(socket_fd, (struct sockaddr*)&server_addr, server_addr_len);
     if (err < 0) {
@@ -70,6 +83,8 @@ int Slave::run() {
     }
 
     output.close();
+    // close socket
+    close(socket_fd);
 
     // using external sort to sort records
     string sort_out_name = "slave.output";
@@ -77,46 +92,78 @@ int Slave::run() {
     es->run();
     delete es;
 
+   
     // send sorted data back to master
-    // ifstream input;
-    // input.open(sort_out_name, ios::in | ios::binary);
-    // if (!input.good()) {
-    //     printf("Fail to open input file.\n");
-    //     close(socket_fd);
-    //     exit(1);
-    // }
+    // create socket, AF_INET = IPv4, SOCK_STREAM = TCP
+    socket_fd = socket(AF_INET, SOCK_STREAM, 0);
+    if (socket_fd < 0) {
+        printf("Fail to create a socket.\n");
+    }
 
-    // struct stat stat_buf;
-    // int rc = stat(sort_out_name.c_str(), &stat_buf);
-    // double file_size = rc == 0 ? stat_buf.st_size : -1;
-    // printf("file size: %.2f GB\n", file_size / 1024.0 / 1024.0 / 1024.0);
+    // set reuse address
+    reuse_addr = 1;
+    setsockopt(socket_fd, SOL_SOCKET, SO_REUSEADDR, (void*)&reuse_addr, sizeof(reuse_addr));
 
-    // bzero(buffer, BUFFER_SIZE);
+    // Explicitly assigning port number 12010 by
+    // binding client with that port
+    my_addr.sin_family = AF_INET;
+    my_addr.sin_addr.s_addr = INADDR_ANY;
+    my_addr.sin_port = htons(CLIENT_PORT);
+    my_addr.sin_addr.s_addr = inet_addr(server_ip.c_str());
+    if (bind(socket_fd, (struct sockaddr*) &my_addr, sizeof(struct sockaddr_in)) == 0){
+        printf("Binded client to port %d Correctly\n", CLIENT_PORT);
+    } else {
+        printf("Unable to bind client to port %d\n", CLIENT_PORT);
+    }
+     
+    // connect to server
+    err = connect(socket_fd, (struct sockaddr*)&server_addr, server_addr_len);
+    if (err < 0) {
+        printf("Fail to connect to server.\n");
+        close(socket_fd);
+        exit(1);
+    }
+    printf("Connected to server.\n");
 
-    // while (!input.eof()) {
-    //     input.read(buffer, BUFFER_SIZE);
-    //     int read_size = input.gcount();
-    //     int send_size = send(socket_fd, buffer, read_size, 0);
-    //     if (send_size < 0) {
-    //         printf("Fail to send file to server.\n");
-    //         close(socket_fd);
-    //         exit(1);
-    //     }
-    //     printf("Send %d bytes to server\n", send_size);
-    //     bzero(buffer, BUFFER_SIZE);
-    // }
+    ifstream input;
+    input.open(sort_out_name, ios::in | ios::binary);
+    if (!input.good()) {
+        printf("Fail to open input file.\n");
+        close(socket_fd);
+        exit(1);
+    }
 
-    // // send 0 bytes to server to indicate the end of file
-    // int send_size = send(socket_fd, buffer, 0, 0);
-    // if (send_size < 0) {
-    //     printf("Fail to send file to server.\n");
-    //     close(socket_fd);
-    //     exit(1);
-    // }
-    // printf("Send %d bytes to server\n", send_size);
+    struct stat stat_buf;
+    int rc = stat(sort_out_name.c_str(), &stat_buf);
+    double file_size = rc == 0 ? stat_buf.st_size : -1;
+    printf("file size: %.2f GB\n", file_size / 1024.0 / 1024.0 / 1024.0);
+
+    bzero(buffer, BUFFER_SIZE);
+
+    while (!input.eof()) {
+        input.read(buffer, BUFFER_SIZE);
+        int read_size = input.gcount();
+        int send_size = send(socket_fd, buffer, read_size, 0);
+        if (send_size < 0) {
+            printf("Fail to send file to server.\n");
+            close(socket_fd);
+            exit(1);
+        }
+        // printf("Send %d bytes to server\n", send_size);
+        bzero(buffer, BUFFER_SIZE);
+    }
+
+    // send 0 bytes to server to indicate the end of file
+    int send_size = send(socket_fd, buffer, 0, 0);
+    if (send_size < 0) {
+        printf("Fail to send file to server.\n");
+        close(socket_fd);
+        exit(1);
+    }
+    printf("Send %d bytes to server\n", send_size);
 
     // close input file
-    // input.close();
+    input.close();
 
     // close socket
     close(socket_fd);
