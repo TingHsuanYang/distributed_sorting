@@ -25,6 +25,102 @@ using namespace std;
 Slave::Slave(string server_ip, int port) : server_ip(server_ip), port(port) {}
 Slave::~Slave() {}
 
+void Slave::receive(int socket_fd, string input_name){
+    // receive file and write to disk
+    ofstream output(input_name, ios::out | ios::binary);
+
+    char* buffer = new char[BUFFER_SIZE];
+    ssize_t len;
+
+    // calculate time for receiving file
+    auto start = chrono::high_resolution_clock::now();
+
+    printf("Receiving file...\n");
+    while (true) {
+        len = recv(socket_fd, buffer, sizeof(buffer), 0);
+        if (len < 0) {
+            printf("Fail to receive file.\n");
+            close(socket_fd);
+            exit(1);
+        } else if (len == 0) {
+            break;
+        }
+        // printf("Received %ld bytes.\n", len);
+        output.write(buffer, len);
+    }
+    printf("Received file finished.\n");
+
+    // free buffer
+    delete [] buffer;
+
+    output.close();
+    // close socket
+    close(socket_fd);
+
+    // calculate time for receiving file
+    auto end = chrono::high_resolution_clock::now();
+    auto duration = chrono::duration_cast<chrono::milliseconds>(end - start);
+    printf("Time for receiving file: %.2f seconds.\n", duration.count() / 1000.0);
+}
+
+void Slave::sendback(int socket_fd, string sort_out_name){
+    ifstream input;
+    input.open(sort_out_name, ios::in | ios::binary);
+    if (!input.good()) {
+        printf("Fail to open input file.\n");
+        close(socket_fd);
+        exit(1);
+    }
+
+    // calculate time for sending file
+    auto start = chrono::high_resolution_clock::now();
+
+    struct stat stat_buf;
+    int rc = stat(sort_out_name.c_str(), &stat_buf);
+    double file_size = rc == 0 ? stat_buf.st_size : -1;
+    printf("file size: %.2f GB\n", file_size / 1024.0 / 1024.0 / 1024.0);
+
+    printf("Sending file...\n");
+
+    // send file to server
+    char* buffer = new char[BUFFER_SIZE];
+    while (!input.eof()) {
+        input.read(buffer, BUFFER_SIZE);
+        int read_size = input.gcount();
+        int send_size = send(socket_fd, buffer, read_size, 0);
+        if (send_size < 0) {
+            printf("Fail to send file to server.\n");
+            close(socket_fd);
+            exit(1);
+        }
+        // printf("Send %d bytes to server\n", send_size);
+        memset(buffer, 0, BUFFER_SIZE);
+    }
+
+    // send 0 bytes to server to indicate the end of file
+    int send_size = send(socket_fd, buffer, 0, 0);
+    if (send_size < 0) {
+        printf("Fail to send file to server.\n");
+        close(socket_fd);
+        exit(1);
+    }
+    printf("Send file finished.\n");
+
+    // calculate time for sending file
+    auto end = chrono::high_resolution_clock::now();
+    auto duration = chrono::duration_cast<chrono::milliseconds>(end - start);
+    printf("Time for sending file: %.2f seconds.\n", duration.count() / 1000.0);
+
+    // free buffer
+    delete [] buffer;
+
+    // close input file
+    input.close();
+
+    // close socket
+    close(socket_fd);
+}
+
 int Slave::run() {
     // create socket, AF_INET = IPv4, SOCK_STREAM = TCP
     int socket_fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -54,37 +150,7 @@ int Slave::run() {
 
     // receive file and write to disk
     string input_name = "slave.input";
-    ofstream output(input_name, ios::out | ios::binary);
-
-    char* buffer = new char[BUFFER_SIZE];
-    ssize_t len;
-
-    // calculate time for receiving file
-    auto start = chrono::high_resolution_clock::now();
-
-    printf("Receiving file...\n");
-    while (true) {
-        len = recv(socket_fd, buffer, sizeof(buffer), 0);
-        if (len < 0) {
-            printf("Fail to receive file.\n");
-            close(socket_fd);
-            exit(1);
-        } else if (len == 0) {
-            break;
-        }
-        // printf("Received %ld bytes.\n", len);
-        output.write(buffer, len);
-    }
-    printf("Received file finished.\n");
-
-    output.close();
-    // close socket
-    close(socket_fd);
-
-    // calculate time for receiving file
-    auto end = chrono::high_resolution_clock::now();
-    auto duration = chrono::duration_cast<chrono::milliseconds>(end - start);
-    printf("Time for receiving file: %.2f seconds.\n", duration.count() / 1000.0);
+    receive(socket_fd, input_name);
 
     printf("Sorting file...\n");
     // using external sort to sort records
@@ -118,60 +184,7 @@ int Slave::run() {
     }
     printf("Connected to server.\n");
 
-    ifstream input;
-    input.open(sort_out_name, ios::in | ios::binary);
-    if (!input.good()) {
-        printf("Fail to open input file.\n");
-        close(socket_fd);
-        exit(1);
-    }
-
-    // calculate time for sending file
-    start = chrono::high_resolution_clock::now();
-
-    struct stat stat_buf;
-    int rc = stat(sort_out_name.c_str(), &stat_buf);
-    double file_size = rc == 0 ? stat_buf.st_size : -1;
-    printf("file size: %.2f GB\n", file_size / 1024.0 / 1024.0 / 1024.0);
-
-    printf("Sending file...\n");
-    // send file to server
-    memset(buffer, 0, BUFFER_SIZE);
-    while (!input.eof()) {
-        input.read(buffer, BUFFER_SIZE);
-        int read_size = input.gcount();
-        int send_size = send(socket_fd, buffer, read_size, 0);
-        if (send_size < 0) {
-            printf("Fail to send file to server.\n");
-            close(socket_fd);
-            exit(1);
-        }
-        // printf("Send %d bytes to server\n", send_size);
-        memset(buffer, 0, BUFFER_SIZE);
-    }
-
-    // send 0 bytes to server to indicate the end of file
-    int send_size = send(socket_fd, buffer, 0, 0);
-    if (send_size < 0) {
-        printf("Fail to send file to server.\n");
-        close(socket_fd);
-        exit(1);
-    }
-    printf("Send file finished.\n");
-
-    // calculate time for sending file
-    end = chrono::high_resolution_clock::now();
-    duration = chrono::duration_cast<chrono::milliseconds>(end - start);
-    printf("Time for sending file: %.2f seconds.\n", duration.count() / 1000.0);
-
-    // free buffer
-    delete [] buffer;
-    
-    // close input file
-    input.close();
-
-    // close socket
-    close(socket_fd);
+    sendback(socket_fd, sort_out_name );
 
     return 0;
 }
