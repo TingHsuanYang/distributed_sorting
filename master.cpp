@@ -17,11 +17,11 @@
 #include <cstring>
 #include <fstream>
 #include <iostream>
+#include <mutex>
 #include <queue>
 #include <string>
 #include <thread>
 #include <vector>
-#include <mutex>
 
 #define BUFFER_SIZE 1000
 #define DATA_SIZE 100
@@ -105,14 +105,13 @@ void Master::thread_send(string inputName, long long pos, long long size, int cl
     input.close();
 
     // free buffer
-    delete [] buffer;
+    delete[] buffer;
 
     // close client socket
     close(client_fd);
 }
 
 void Master::thread_recv(int socket_fd, int client_idx) {
-    
     // accept incoming connection
     struct sockaddr_in client_addr;
     socklen_t client_addr_len = sizeof(client_addr);
@@ -161,7 +160,7 @@ void Master::thread_recv(int socket_fd, int client_idx) {
     printf("Finish receiving file from client %d in %.2f seconds.\n", client_idx, duration.count() * 1.0 / 1000000);
 
     // free buffer
-    delete [] buffer;
+    delete[] buffer;
 
     // close client socket
     close(client_fd);
@@ -213,7 +212,7 @@ void Master::merge() {
     }
 
     // free buffer
-    delete [] buffer;
+    delete[] buffer;
 
     // close all the part files
     for (int i = 0; i < part_files.size(); i++) {

@@ -25,7 +25,7 @@ using namespace std;
 Slave::Slave(string server_ip, int port) : server_ip(server_ip), port(port) {}
 Slave::~Slave() {}
 
-void Slave::receive(int socket_fd, string input_name){
+void Slave::receive(int socket_fd, string input_name) {
     // receive file and write to disk
     ofstream output(input_name, ios::out | ios::binary);
 
@@ -51,7 +51,7 @@ void Slave::receive(int socket_fd, string input_name){
     printf("Received file finished.\n");
 
     // free buffer
-    delete [] buffer;
+    delete[] buffer;
 
     output.close();
     // close socket
@@ -63,7 +63,7 @@ void Slave::receive(int socket_fd, string input_name){
     printf("Time for receiving file: %.2f seconds.\n", duration.count() / 1000.0);
 }
 
-void Slave::sendback(int socket_fd, string sort_out_name){
+void Slave::sendback(int socket_fd, string sort_out_name) {
     ifstream input;
     input.open(sort_out_name, ios::in | ios::binary);
     if (!input.good()) {
@@ -112,7 +112,7 @@ void Slave::sendback(int socket_fd, string sort_out_name){
     printf("Time for sending file: %.2f seconds.\n", duration.count() / 1000.0);
 
     // free buffer
-    delete [] buffer;
+    delete[] buffer;
 
     // close input file
     input.close();
@@ -184,7 +184,10 @@ int Slave::run() {
     }
     printf("Connected to server.\n");
 
-    sendback(socket_fd, sort_out_name );
+    sendback(socket_fd, sort_out_name);
+
+    // remove sorted file
+    remove(sort_out_name.c_str());
 
     return 0;
 }

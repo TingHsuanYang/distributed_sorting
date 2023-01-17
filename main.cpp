@@ -14,6 +14,8 @@
 #include <string>
 #include <vector>
 
+#include "external_sort.hpp"
+#include "external_sort_mt.hpp"
 #include "master.hpp"
 #include "slave.hpp"
 
@@ -23,6 +25,8 @@ void help() {
     cout << "Usage: main [-m|--mode <master|slave>] [-p|--port <port>] [-n|--num <num>] [-i|--input <input>] [-o|--output <output>]" << endl;
     cout << "Example: ./main -m master -p 8080 -n 5 -i ./input -o ./output" << endl;
     cout << "Example: ./main -m slave -p 8080" << endl;
+    cout << "Example: ./main -m sort -i ./input -o ./output" << endl;
+    cout << "Example: ./main -m sort_mt -i ./input -o ./output" << endl;
 }
 
 int main(int argc, char** argv) {
@@ -82,6 +86,13 @@ int main(int argc, char** argv) {
         }
         Slave slave(server_ip, port);
         slave.run();
+    } else if (mode == "sort") {
+        ExternalSort* external_sort = new ExternalSort(input, output);
+        external_sort->run();
+        delete external_sort;
+    } else if (mode == "sort_mt") {
+        help();
+        return 1;
     } else {
         help();
         return 1;
