@@ -43,20 +43,23 @@ int Slave::run() {
     server_addr.sin_port = htons(port);                          // port
     socklen_t server_addr_len = sizeof(server_addr);
 
-    // Explicitly assigning port number 12010 by
-    // binding client with that port
-    my_addr.sin_family = AF_INET;
-    my_addr.sin_addr.s_addr = INADDR_ANY;
-    my_addr.sin_port = htons(CLIENT_PORT);
-    my_addr.sin_addr.s_addr = inet_addr(server_ip.c_str());
-    if (bind(socket_fd, (struct sockaddr*) &my_addr, sizeof(struct sockaddr_in)) == 0){
-        printf("Binded client to port %d Correctly\n", CLIENT_PORT);
-    } else {
-        printf("Unable to bind client to port %d\n", CLIENT_PORT);
+    // set client port
+    struct sockaddr_in client_addr;
+    client_addr.sin_family = AF_INET;          // IPv4
+    client_addr.sin_addr.s_addr = INADDR_ANY;  // Any IP address
+    client_addr.sin_port = htons(12346);           // Any port
+    socklen_t client_addr_len = sizeof(client_addr);
+
+    // bind socket to client port
+    int err = bind(socket_fd, (struct sockaddr*)&client_addr, client_addr_len);
+    if (err < 0) {
+        printf("Fail to bind socket to client port.\n");
+        close(socket_fd);
+        exit(1);
     }
-     
+
     // connect to server
-    int err = connect(socket_fd, (struct sockaddr*)&server_addr, server_addr_len);
+    err = connect(socket_fd, (struct sockaddr*)&server_addr, server_addr_len);
     if (err < 0) {
         printf("Fail to connect to server.\n");
         close(socket_fd);
