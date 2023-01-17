@@ -21,11 +21,14 @@
 #include <string>
 #include <thread>
 #include <vector>
+#include <mutex>
 
 #define BUFFER_SIZE 1000
 #define DATA_SIZE 100
 
 using namespace std;
+
+mutex mtx;
 
 struct HeapNode {
     int index;
@@ -126,7 +129,12 @@ void Master::thread_recv(int socket_fd, int client_idx) {
     // receive sorted parts from clients
     string part_name = "slave";
     part_name.append(to_string(client_idx)).append(".part");
+
+    // add mutex lock
+    mtx.lock();
     part_names.push_back(part_name);
+    mtx.unlock();
+
     ofstream output(part_name, ios::out | ios::binary);
     char buffer[4096];
     ssize_t len;
