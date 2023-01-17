@@ -55,7 +55,8 @@ int Slave::run() {
     // receive file and write to disk
     string input_name = "slave.input";
     ofstream output(input_name, ios::out | ios::binary);
-    char buffer[BUFFER_SIZE];
+
+    char* buffer = new char[BUFFER_SIZE];
     ssize_t len;
 
     // calculate time for receiving file
@@ -163,6 +164,9 @@ int Slave::run() {
     duration = chrono::duration_cast<chrono::milliseconds>(end - start);
     printf("Time for sending file: %.2f seconds.\n", duration.count() / 1000.0);
 
+    // free buffer
+    delete [] buffer;
+    
     // close input file
     input.close();
 
