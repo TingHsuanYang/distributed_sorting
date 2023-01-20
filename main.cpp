@@ -77,22 +77,24 @@ int main(int argc, char** argv) {
             help();
             return 1;
         }
-        Master master(port, num, input, output);
-        master.run();
+        Master* master = new Master(port, num, input, output);
+        master->run();
+        delete master;
     } else if (mode == "slave") {
         if (port == 0) {
             help();
             return 1;
         }
-        Slave slave(server_ip, port);
-        slave.run();
+        Slave* slave = new Slave(server_ip, port);
+        slave->run();
     } else if (mode == "sort") {
         ExternalSort* external_sort = new ExternalSort(input, output);
         external_sort->run();
         delete external_sort;
     } else if (mode == "sort_mt") {
-        help();
-        return 1;
+        ExternalSortMT* external_sort_mt = new ExternalSortMT(input, output);
+        external_sort_mt->run();
+        delete external_sort_mt;
     } else {
         help();
         return 1;
