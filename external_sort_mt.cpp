@@ -76,6 +76,7 @@ void ExternalSortMT::thread_process(long long cur_pos, long long size, int threa
         }
         output.close();
         size -= read_size;
+        part_num++;
     }
     delete[] buffer;
     input.close();
@@ -229,6 +230,9 @@ int ExternalSortMT::run() {
     for (int i = 0; i < part_names.size(); i++) {
         remove(part_names[i].c_str());
     }
+
+    // remove the input file
+    remove(inputName.c_str());
 
     auto end = chrono::high_resolution_clock::now();
     printf("execution time: %.3f seconds\n", chrono::duration_cast<chrono::milliseconds>(end - start).count() / 1000.0);
