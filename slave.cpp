@@ -17,7 +17,7 @@
 #include <string>
 #include <vector>
 
-#include "external_sort.hpp"
+#include "external_sort_mt.hpp"
 #define BUFFER_SIZE 4096
 
 using namespace std;
@@ -155,7 +155,7 @@ int Slave::run() {
     printf("Sorting file...\n");
     // using external sort to sort records
     string sort_out_name = "sorted.output";
-    ExternalSort* es = new ExternalSort(input_name, sort_out_name);
+    ExternalSortMT* es = new ExternalSortMT(input_name, sort_out_name);
     es->run();
     delete es;
 

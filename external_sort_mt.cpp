@@ -223,6 +223,9 @@ int ExternalSortMT::run() {
         part_names.push_back(string("part") + "_" + to_string(i));
     }
 
+    // remove the input file
+    remove(inputName.c_str());
+
     // merge the thread result
     merge();
 
@@ -230,9 +233,6 @@ int ExternalSortMT::run() {
     for (int i = 0; i < part_names.size(); i++) {
         remove(part_names[i].c_str());
     }
-
-    // remove the input file
-    remove(inputName.c_str());
 
     auto end = chrono::high_resolution_clock::now();
     printf("execution time: %.3f seconds\n", chrono::duration_cast<chrono::milliseconds>(end - start).count() / 1000.0);
